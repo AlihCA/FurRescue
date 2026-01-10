@@ -25,6 +25,21 @@ export const animals = [
     raised: 1250,
     imageUrl:`${import.meta.env.BASE_URL}02-dog.png`,
   },
+
+      {
+    id: "d3",
+    category: "donate",
+    name: "Miming",
+    gender: "Male",
+    breed: "Puspins",
+    age: "4 months",
+    shelter: "Manila Rescue Hub",
+    medicalNeeds: "Skin infection treatment + vitamins",
+    goal: 2000,
+    raised: 1250,
+    imageUrl:`${import.meta.env.BASE_URL}01-cat.jpg`,
+  },
+
   {
     id: "a1",
     category: "adopt",
@@ -49,4 +64,5 @@ export const animals = [
     fbLink: "https://facebook.com/",
     imageUrl:`${import.meta.env.BASE_URL}04-dog.jpg`,
   },
+
 ];
