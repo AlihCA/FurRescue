@@ -46,7 +46,7 @@ export default function Animals() {
         <div>
           <h1 className="text-3xl font-black tracking-tight">Animals</h1>
           <p className="mt-2 text-zinc-600">
-            Donate to medical needs or adopt recovered dogs ready for a home.
+            Donate to medical needs or adopt recovered pets ready for a home.
           </p>
         </div>
 

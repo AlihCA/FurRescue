@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Pastel theme tokens ===== */
 :root{
   --bg: 255 248 252;     /* super light pink */
   --card: 255 255 255;   /* white */
@@ -14,13 +13,11 @@
   --mint: 34 211 238;    /* cyan-400 for small accents */
 }
 
-/* Page background + paw pattern */
 body{
   background: rgb(var(--bg));
   color: rgb(var(--text));
 }
 
-/* Paw pattern layer (pure CSS) */
 .paw-bg{
   position: relative;
 }
@@ -32,7 +29,6 @@ body{
   pointer-events: none;
   z-index: -1;
 
-  /* create a subtle paw pattern using radial-gradients */
   background-image:
     radial-gradient(circle at 12px 10px, rgba(236,72,153,.12) 2px, transparent 3px),
     radial-gradient(circle at 22px 10px, rgba(236,72,153,.12) 2px, transparent 3px),
@@ -44,11 +40,9 @@ body{
   background-position: 0 0;
   opacity: .7;
 
-  /* soft blur so it feels "printed" */
   filter: blur(.2px);
 }
 
-/* helper utilities */
 .card{
   background: rgb(var(--card));
   border: 1px solid rgb(var(--border));
