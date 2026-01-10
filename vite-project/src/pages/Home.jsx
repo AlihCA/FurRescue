@@ -46,7 +46,7 @@ export default function Home() {
           <div className="mt-7 flex flex-wrap gap-3">
             <button
               onClick={() => navigate("/animals?tab=donate")}
-              className="btn-pink rounded-2xl px-5 py-3 font-extrabold transition-all shadow-[0_14px_35px_rgba(236,72,153,.22)]"
+              className="btn-pink rounded-2xl px-5 py-3 font-extrabold transition-all"
             >
               <span className="inline-flex items-center gap-2">
                 <HeartHandshake size={18} /> Donate

@@ -24,7 +24,6 @@ export default function AnimalCard({ item, onDonate }) {
                          group-hover:contrast-110 group-hover:saturate-110"
             />
 
-            {/* Soft pastel overlay (fades on hover to show real colors) */}
             <div
               className="absolute inset-0 bg-gradient-to-br
                          from-pink-100/40 via-rose-50/20 to-cyan-50/30
@@ -32,7 +31,6 @@ export default function AnimalCard({ item, onDonate }) {
                          group-hover:opacity-0"
             />
 
-            {/* Decorative blobs (very subtle) */}
             <div className="absolute inset-0 opacity-60 pointer-events-none">
               <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-pink-200/40 blur-2xl" />
               <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-cyan-200/40 blur-2xl" />
@@ -43,12 +41,11 @@ export default function AnimalCard({ item, onDonate }) {
           <div className="h-full w-full flex items-center justify-center
                           bg-gradient-to-br from-pink-100 via-rose-50 to-cyan-50
                           text-zinc-500 font-semibold">
-            No image available 🐾
+            No image available 
           </div>
         )}
       </div>
 
-      {/* CONTENT */}
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -103,8 +100,7 @@ export default function AnimalCard({ item, onDonate }) {
             <button
               onClick={() => onDonate(item)}
               className="mt-4 w-full btn-pink rounded-2xl px-4 py-3
-                         font-extrabold transition-all
-                         shadow-[0_14px_35px_rgba(236,72,153,.22)]"
+                         font-extrabold transition-all"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <Heart size={18} /> Donate
