@@ -10,7 +10,7 @@ export default function Tabs({ value, onChange, items }) {
             className={[
               "px-4 py-2 rounded-2xl text-sm font-extrabold transition-all",
               active
-                ? "btn-pink shadow-[0_12px_30px_rgba(236,72,153,.22)]"
+                ? "btn-pink"
                 : "text-zinc-700 hover:bg-pink-100/70",
             ].join(" ")}
           >

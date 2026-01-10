@@ -60,14 +60,12 @@ export default function Animals() {
         />
       </div>
 
-      {/* Grid */}
       <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((a) => (
           <AnimalCard key={a.id} item={a} onDonate={openDonate} />
         ))}
       </div>
 
-      {/* General donation CTA */}
       <section className="mt-12 rounded-3xl border border-zinc-200 bg-zinc-50 p-6 md:p-8">
         <div className="flex items-start gap-3">
           <div className="h-11 w-11 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center">
