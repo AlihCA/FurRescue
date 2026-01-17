@@ -53,7 +53,6 @@ app.post("/webhooks/paymongo", express.raw({ type: "application/json" }), async 
         );
         if (!dRows.length) {
           await conn.rollback();
-          conn.release();
           return res.status(200).json({ ok: true }); // ignore unknown
         }
 
