@@ -5,21 +5,39 @@ import Animals from "./pages/Animals";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Footer from "./components/Footer";
+import AdminDashboard from "./pages/AdminDashboard";
+import RequireAdmin from "./components/RequireAdmin";
+
+import SignInPage from "./pages/SignInPage";
+import SignUpPage from "./pages/SignUpPage";
 
 export default function App() {
   return (
     <div className="paw-bg min-h-screen flex flex-col">
       <Navbar />
-        <main className="flex-1">
+      <main className="flex-1">
         <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/animals" element={<Animals />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      <Footer />     
+          <Route path="/" element={<Home />} />
+          <Route path="/animals" element={<Animals />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+
+          <Route path="/sign-in/*" element={<SignInPage />} />
+          <Route path="/sign-up/*" element={<SignUpPage />} />
+
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminDashboard />
+              </RequireAdmin>
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      <Footer />
     </div>
   );
 }

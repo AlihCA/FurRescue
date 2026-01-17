@@ -1,23 +1,61 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Tabs from "../components/Tabs";
 import AnimalCard from "../components/AnimalCard";
 import DonateModal from "../components/DonateModal";
-import { animals as seed } from "../data/animals";
+import DonorsModal from "../components/DonorsModal";
 import { HandHeart } from "lucide-react";
 
+import { useAuth } from "@clerk/clerk-react";
+
 export default function Animals() {
+  const { isSignedIn, getToken } = useAuth();
+  const navigate = useNavigate();
+
   const [params, setParams] = useSearchParams();
   const initialTab = params.get("tab") === "adopt" ? "adopt" : "donate";
   const [tab, setTab] = useState(initialTab);
 
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [selected, setSelected] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Donors modal state
+  const [donorsOpen, setDonorsOpen] = useState(false);
+  const [donorsAnimal, setDonorsAnimal] = useState(null);
+  const [donors, setDonors] = useState([]);
+  const [donorsLoading, setDonorsLoading] = useState(false);
+  const [donorsError, setDonorsError] = useState("");
+
+  // Keep URL in sync with tab
   useEffect(() => {
     setParams({ tab });
   }, [tab, setParams]);
+
+  // Load animals once
+  const loadAnimals = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch("http://localhost:4000/api/animals");
+      if (!res.ok) throw new Error("Failed to load animals");
+
+      const data = await res.json();
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e?.message || "Error loading animals");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAnimals();
+  }, []);
 
   const filtered = useMemo(
     () => items.filter((a) => a.category === tab),
@@ -25,20 +63,66 @@ export default function Animals() {
   );
 
   const openDonate = (animal) => {
+    if (!isSignedIn) {
+      navigate("/sign-in");
+      return;
+    }
     setSelected(animal);
     setModalOpen(true);
   };
 
-  const handleSuccess = ({ amount }) => {
-    setItems((prev) =>
-      prev.map((a) =>
-        a.id === selected.id
-          ? { ...a, raised: Math.min(a.goal, a.raised + amount) }
-          : a
-      )
-    );
-    setModalOpen(false);
+  // Open donors modal (click progress)
+  const openDonors = async (animal) => {
+    setDonorsAnimal(animal);
+    setDonorsOpen(true);
+
+    try {
+      setDonorsLoading(true);
+      setDonorsError("");
+
+      const res = await fetch(
+        `http://localhost:4000/api/animals/${animal.id}/donations`
+      );
+      if (!res.ok) throw new Error("Failed to load donors");
+
+      const data = await res.json();
+      setDonors(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setDonorsError(e?.message || "Error loading donors");
+      setDonors([]);
+    } finally {
+      setDonorsLoading(false);
+    }
   };
+
+  const handleSuccess = async ({ amount, donorName, isAnonymous }) => {
+    try {
+      const token = await getToken();
+
+      const res = await fetch(
+        `http://localhost:4000/api/animals/${selected.id}/paymongo/checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ amount, donorName, isAnonymous }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to start checkout");
+      }
+
+      const { checkoutUrl } = await res.json();
+      window.location.href = checkoutUrl; // redirect to PayMongo
+    } catch (e) {
+      alert(e?.message || "Donation failed");
+    }
+  };
+
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
@@ -60,9 +144,17 @@ export default function Animals() {
         />
       </div>
 
+      {loading && <p className="mt-6 text-zinc-600">Loading animals...</p>}
+      {error && <p className="mt-6 text-red-600">{error}</p>}
+
       <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((a) => (
-          <AnimalCard key={a.id} item={a} onDonate={openDonate} />
+          <AnimalCard
+            key={a.id}
+            item={a}
+            onDonate={openDonate}
+            onViewDonors={openDonors}
+          />
         ))}
       </div>
 
@@ -72,7 +164,9 @@ export default function Animals() {
             <HandHeart />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold">Donate for general rescue needs</h2>
+            <h2 className="text-xl font-extrabold">
+              Donate for general rescue needs
+            </h2>
             <p className="mt-1 text-zinc-600">
               Support food, shelter supplies, transportation, and emergency rescues.
             </p>
@@ -91,6 +185,20 @@ export default function Animals() {
         onClose={() => setModalOpen(false)}
         animal={selected}
         onSuccess={handleSuccess}
+      />
+
+      <DonorsModal
+        open={donorsOpen}
+        onClose={() => {
+          setDonorsOpen(false);
+          setDonorsAnimal(null);
+          setDonors([]);
+          setDonorsError("");
+        }}
+        animal={donorsAnimal}
+        donors={donors}
+        loading={donorsLoading}
+        error={donorsError}
       />
     </main>
   );

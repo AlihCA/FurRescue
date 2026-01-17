@@ -1,7 +1,16 @@
-import { MapPin, Syringe, Heart } from "lucide-react";
+// AnimalCard.jsx
+import { MapPin, Syringe, Heart, Users } from "lucide-react";
 
-export default function AnimalCard({ item, onDonate }) {
+export default function AnimalCard({ item, onDonate, onViewDonors }) {
   const isDonate = item.category === "donate";
+
+  const raised = Number(item.raised || 0);
+  const goal = Number(item.goal || 0);
+
+  const hasGoal = isDonate && Number.isFinite(goal) && goal > 0;
+  const progressPct = hasGoal ? Math.min(100, (raised / goal) * 100) : 0;
+
+  const goalReached = hasGoal ? raised >= goal : false;
 
   return (
     <div
@@ -15,7 +24,6 @@ export default function AnimalCard({ item, onDonate }) {
       <div className="relative h-48 w-full overflow-hidden border-b border-pink-200">
         {item.imageUrl ? (
           <>
-            {/* Image */}
             <img
               src={item.imageUrl}
               alt={item.name}
@@ -37,11 +45,12 @@ export default function AnimalCard({ item, onDonate }) {
             </div>
           </>
         ) : (
-          /* Fallback when no image exists */
-          <div className="h-full w-full flex items-center justify-center
-                          bg-gradient-to-br from-pink-100 via-rose-50 to-cyan-50
-                          text-zinc-500 font-semibold">
-            No image available 
+          <div
+            className="h-full w-full flex items-center justify-center
+                       bg-gradient-to-br from-pink-100 via-rose-50 to-cyan-50
+                       text-zinc-500 font-semibold"
+          >
+            No image available
           </div>
         )}
       </div>
@@ -55,8 +64,10 @@ export default function AnimalCard({ item, onDonate }) {
             </p>
           </div>
 
-          <span className="text-xs font-extrabold px-2 py-1 rounded-full
-                           bg-pink-100/70 text-pink-700 border border-pink-200">
+          <span
+            className="text-xs font-extrabold px-2 py-1 rounded-full
+                       bg-pink-100/70 text-pink-700 border border-pink-200"
+          >
             {isDonate ? "Donate" : "Adopt"}
           </span>
         </div>
@@ -79,31 +90,60 @@ export default function AnimalCard({ item, onDonate }) {
 
         {isDonate ? (
           <div className="mt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-600">Progress</span>
-              <span className="font-extrabold text-pink-700">
-                ₱{item.raised.toLocaleString()}/₱{item.goal.toLocaleString()}
-              </span>
-            </div>
+            {/* CLICKABLE PROGRESS (opens donors modal) */}
+            <button
+              type="button"
+              onClick={() => onViewDonors?.(item)}
+              className="w-full text-left rounded-2xl border border-pink-200 bg-pink-50/40 px-4 py-3
+                         hover:bg-pink-50 transition
+                         focus:outline-none focus:ring-2 focus:ring-pink-300/40"
+              aria-label={`View donors for ${item.name}`}
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600">
+                  {goalReached ? "Goal Reached" : "Progress"}
+                </span>
 
-            <div className="mt-2 h-3 rounded-full bg-pink-100 overflow-hidden border border-pink-200">
-              <div
-                className="h-full"
-                style={{
-                  width: `${Math.min(100, (item.raised / item.goal) * 100)}%`,
-                  background:
-                    "linear-gradient(135deg, rgb(var(--pink)), rgb(var(--pink2)))",
-                }}
-              />
-            </div>
+                <span className="font-extrabold text-pink-700">
+                  {hasGoal ? (
+                    <>
+                      ₱{raised.toLocaleString()}/₱{goal.toLocaleString()}
+                    </>
+                  ) : (
+                    <>₱{raised.toLocaleString()}</>
+                  )}
+                </span>
+              </div>
+
+              {hasGoal ? (
+                <div className="mt-2 h-3 rounded-full bg-pink-100 overflow-hidden border border-pink-200">
+                  <div
+                    className="h-full"
+                    style={{
+                      width: `${progressPct}%`,
+                      background:
+                        "linear-gradient(135deg, rgb(var(--pink)), rgb(var(--pink2)))",
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              <div className="mt-2 text-xs text-zinc-600 inline-flex items-center gap-2">
+                <Users size={14} className="text-pink-500" />
+                Click to view donors list
+              </div>
+            </button>
 
             <button
               onClick={() => onDonate(item)}
+              disabled={goalReached}
               className="mt-4 w-full btn-pink rounded-2xl px-4 py-3
-                         font-extrabold transition-all"
+                         font-extrabold transition-all
+                         disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <span className="inline-flex items-center justify-center gap-2">
-                <Heart size={18} /> Donate
+                <Heart size={18} />
+                {goalReached ? "Goal Reached" : "Donate"}
               </span>
             </button>
           </div>
