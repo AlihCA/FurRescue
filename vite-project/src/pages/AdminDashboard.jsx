@@ -5,7 +5,6 @@ import { useAuth } from "@clerk/clerk-react";
 import EditAnimalModal from "../components/EditAnimalModal";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import Tabs from "../components/Tabs";
-import AdminNotifications from "../components/AdminNotifications";
 
 export default function AdminDashboard() {
   const [form, setForm] = useState({
@@ -221,10 +220,6 @@ export default function AdminDashboard() {
     <main className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="text-3xl font-black tracking-tight">Admin Dashboard</h1>
       <p className="mt-2 text-zinc-600">Add animals for Donate / Adopt.</p>
-
-      <div className="mt-6">
-        <AdminNotifications />
-      </div>
 
       {/* ADD FORM */}
       <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-6">

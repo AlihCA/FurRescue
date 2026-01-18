@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { PawPrint, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/clerk-react";
+import AdminNotifications from "./AdminNotifications";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -93,7 +94,10 @@ export default function Navbar() {
             </SignedOut>
 
             <SignedIn>
-              <UserButton afterSignOutUrl="/" />
+              <div className="flex items-center gap-2">
+                {isAdmin && <AdminNotifications />}
+                <UserButton afterSignOutUrl="/" />
+              </div>
             </SignedIn>
           </div>
 

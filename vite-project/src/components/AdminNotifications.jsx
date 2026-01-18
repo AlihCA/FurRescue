@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, X } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 
@@ -16,6 +16,8 @@ export default function AdminNotifications() {
     () => items.filter((n) => !n.readAt).length,
     [items]
   );
+
+  const rootRef = useRef(null);
 
   const load = async () => {
     try {
@@ -41,65 +43,101 @@ export default function AdminNotifications() {
   const markRead = async (id) => {
     try {
       const token = await getToken();
-      const res = await fetch(
-        `${API}/api/admin/notifications/${id}/read`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${API}/api/admin/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to mark as read");
 
       setItems((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
+        prev.map((n) =>
+          n.id === id ? { ...n, readAt: new Date().toISOString() } : n
+        )
       );
     } catch (e) {
       alert(e?.message || "Failed");
     }
   };
 
-  useEffect(() => {
-    // initial load
-    load();
+  // Optional: mark all read (frontend-only UX if you don't have an endpoint)
+  const markAllReadLocal = () => {
+    setItems((prev) =>
+      prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date().toISOString() }))
+    );
+  };
 
-    // simple polling (every 20s)
+  useEffect(() => {
+    load();
     const t = setInterval(load, 20000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Close on click outside + ESC
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (e) => {
+      const el = rootRef.current;
+      if (!el) return;
+      if (!el.contains(e.target)) setOpen(false);
+    };
+
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
+      {/* Icon button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative btn-soft rounded-2xl px-4 py-2 font-extrabold text-pink-700 transition-all inline-flex items-center gap-2"
+        className="relative h-10 w-10 rounded-2xl inline-flex items-center justify-center
+                   border border-pink-200 bg-white hover:bg-pink-50 transition"
+        aria-label="Admin notifications"
       >
-        <Bell size={18} />
-        Notifications
+        <Bell size={18} className="text-pink-700" />
         {unreadCount > 0 && (
-          <span className="ml-1 inline-flex items-center justify-center min-w-[22px] h-[22px] px-2 rounded-full text-xs font-black bg-pink-600 text-white">
-            {unreadCount}
+          <span
+            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
+                       rounded-full bg-pink-600 text-white text-[10px] font-black
+                       inline-flex items-center justify-center"
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
+      {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-3 w-[360px] max-w-[90vw] rounded-3xl border border-zinc-200 bg-white shadow-xl overflow-hidden z-50">
-          <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
+        <div
+          className="absolute right-0 mt-3 w-[360px] max-w-[90vw]
+                     rounded-3xl border border-zinc-200 bg-white shadow-xl overflow-hidden z-50"
+          role="dialog"
+          aria-label="Admin notifications panel"
+        >
+          <div className="p-4 border-b border-zinc-200 flex items-start justify-between gap-3">
             <div>
-              <p className="font-extrabold">Admin Notifications</p>
-              <p className="text-xs text-zinc-600">
-                Goal Reached alerts (latest 100).
-              </p>
+              <p className="font-extrabold">Notifications</p>
+              <p className="text-xs text-zinc-600">Goal reached alerts (latest 100).</p>
             </div>
+
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="p-2 rounded-xl hover:bg-zinc-100"
-              aria-label="Close notifications"
+              aria-label="Close"
             >
               <X size={18} />
             </button>
@@ -116,18 +154,14 @@ export default function AdminNotifications() {
             {!loading && !err && items.length > 0 && (
               <div className="space-y-3">
                 {items.map((n) => {
-                  const when = n.createdAt
-                    ? new Date(n.createdAt).toLocaleString()
-                    : "";
+                  const when = n.createdAt ? new Date(n.createdAt).toLocaleString() : "";
                   const unread = !n.readAt;
 
                   return (
                     <div
                       key={n.id}
                       className={`rounded-2xl border p-4 ${
-                        unread
-                          ? "border-pink-200 bg-pink-50/40"
-                          : "border-zinc-200 bg-white"
+                        unread ? "border-pink-200 bg-pink-50/40" : "border-zinc-200 bg-white"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -135,27 +169,23 @@ export default function AdminNotifications() {
                           <p className="font-extrabold text-zinc-900">
                             {n.type || "NOTIFICATION"}
                           </p>
-                          <p className="text-sm text-zinc-700 mt-1">
-                            {n.message}
-                          </p>
-                          {when && (
-                            <p className="text-xs text-zinc-500 mt-2">{when}</p>
-                          )}
+                          <p className="text-sm text-zinc-700 mt-1">{n.message}</p>
+                          {when && <p className="text-xs text-zinc-500 mt-2">{when}</p>}
                         </div>
 
                         {unread ? (
                           <button
                             type="button"
                             onClick={() => markRead(n.id)}
-                            className="btn-soft rounded-2xl px-3 py-2 font-extrabold text-pink-700 transition-all inline-flex items-center gap-2"
+                            className="rounded-2xl px-3 py-2 text-sm font-extrabold
+                                       border border-pink-200 text-pink-700 hover:bg-pink-50
+                                       inline-flex items-center gap-2 transition"
                           >
                             <Check size={16} />
                             Read
                           </button>
                         ) : (
-                          <span className="text-xs font-bold text-zinc-500">
-                            Read
-                          </span>
+                          <span className="text-xs font-bold text-zinc-500">Read</span>
                         )}
                       </div>
                     </div>
@@ -165,11 +195,19 @@ export default function AdminNotifications() {
             )}
           </div>
 
-          <div className="p-4 border-t border-zinc-200 flex justify-end">
+          <div className="p-4 border-t border-zinc-200 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={markAllReadLocal}
+              className="text-sm font-extrabold text-zinc-700 hover:text-zinc-900"
+            >
+              Mark all as read
+            </button>
+
             <button
               type="button"
               onClick={load}
-              className="btn-soft rounded-2xl px-4 py-2 font-extrabold text-pink-700 transition-all"
+              className="rounded-2xl px-4 py-2 font-extrabold border border-pink-200 text-pink-700 hover:bg-pink-50 transition"
             >
               Refresh
             </button>
