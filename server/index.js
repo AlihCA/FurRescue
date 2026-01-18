@@ -29,8 +29,14 @@ app.post("/webhooks/paymongo", express.raw({ type: "application/json" }), async 
     // (BUT turn it back on before production)
     const event = JSON.parse(req.body.toString("utf8"));
 
-    const eventType = event?.data?.attributes?.type;
-    const resource = event?.data?.attributes?.data;
+    const eventType =
+      event?.data?.attributes?.type ||
+      event?.data?.type ||
+      event?.type;
+    const resource =
+      event?.data?.attributes?.data ||
+      event?.data?.attributes ||
+      event?.data;
 
     // We care about successful checkout payment
     if (eventType === "checkout_session.payment.paid") {
