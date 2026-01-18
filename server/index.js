@@ -19,85 +19,88 @@ app.use(
   })
 );
 
-app.post("/webhooks/paymongo", express.raw({ type: "application/json" }), async (req, res) => {
-  try {
-    // 1) Verify signature (recommended)
-    // This depends on PayMongo’s exact signature format in their “Webhook best practices” doc. :contentReference[oaicite:4]{index=4}
-    // Implement verification according to the header they send + your PAYMONGO_WEBHOOK_SECRET.
+// PayMongo Webhook
+app.post(
+  "/webhooks/paymongo",
+  express.raw({ type: "*/*" }),
+  async (req, res) => {
+    try {
+      const raw = req.body?.toString("utf8") || "";
+      const event = raw ? JSON.parse(raw) : null;
+      if (!event) return res.status(400).json({ error: "Empty webhook body" });
 
-    // If you want a quick start while testing locally, you can temporarily skip verification:
-    // (BUT turn it back on before production)
-    const event = JSON.parse(req.body.toString("utf8"));
+      const eventType =
+        event?.data?.attributes?.type ||
+        event?.data?.type ||
+        event?.type;
 
-    const eventType =
-      event?.data?.attributes?.type ||
-      event?.data?.type ||
-      event?.type;
-    const resource =
-      event?.data?.attributes?.data ||
-      event?.data?.attributes ||
-      event?.data;
+      const resource =
+        event?.data?.attributes?.data ||
+        event?.data?.attributes ||
+        event?.data;
 
-    // We care about successful checkout payment
-    if (eventType === "checkout_session.payment.paid") {
-      const checkoutId = resource?.id; // checkout session id
-      const paymentId = resource?.attributes?.payments?.[0]?.id || null;
+      // TODO: verify signature later in production
 
-      if (!checkoutId) return res.status(400).json({ error: "Missing checkout id" });
+      if (eventType === "checkout_session.payment.paid") {
+        const checkoutId = resource?.id || resource?.data?.id;
+        const paymentId =
+          resource?.attributes?.payments?.[0]?.id ||
+          resource?.payments?.[0]?.id ||
+          null;
 
-      const conn = await db.getConnection();
-      try {
-        await conn.beginTransaction();
+        if (!checkoutId) return res.status(400).json({ error: "Missing checkout id" });
 
-        // Find donation by checkout id
-        const [dRows] = await conn.query(
-          `SELECT id, animal_id, amount, status
-           FROM donations
-           WHERE paymongo_checkout_id = ?
-           FOR UPDATE`,
-          [checkoutId]
-        );
-        if (!dRows.length) {
-          await conn.rollback();
-          return res.status(200).json({ ok: true }); // ignore unknown
-        }
+        const conn = await db.getConnection();
+        try {
+          await conn.beginTransaction();
 
-        const d = dRows[0];
-        if (d.status !== "paid") {
-          // Mark donation paid
-          await conn.query(
-            `UPDATE donations
-             SET status='paid', paymongo_payment_id=?
-             WHERE id=?`,
-            [paymentId, d.id]
+          const [dRows] = await conn.query(
+            `SELECT id, animal_id, amount, status
+             FROM donations
+             WHERE paymongo_checkout_id = ?
+             FOR UPDATE`,
+            [checkoutId]
           );
 
-          // Increase raised
-          await conn.query(
-            `UPDATE animals
-             SET raised_amount = COALESCE(raised_amount, 0) + ?
-             WHERE id = ?`,
-            [Number(d.amount), d.animal_id]
-          );
+          if (dRows.length) {
+            const d = dRows[0];
 
-          await maybeCompleteGoalAndNotify(conn, d.animal_id);
+            if (d.status !== "paid") {
+              await conn.query(
+                `UPDATE donations
+                 SET status='paid', paymongo_payment_id=?
+                 WHERE id=?`,
+                [paymentId, d.id]
+              );
+
+              await conn.query(
+                `UPDATE animals
+                 SET raised_amount = COALESCE(raised_amount, 0) + ?
+                 WHERE id = ?`,
+                [Number(d.amount), d.animal_id]
+              );
+
+              await maybeCompleteGoalAndNotify(conn, d.animal_id);
+            }
+          }
+
+          await conn.commit();
+        } catch (e) {
+          await conn.rollback().catch(() => {});
+          console.error("Webhook DB error:", e);
+          return res.status(500).json({ error: "Webhook DB failed" });
+        } finally {
+          conn.release();
         }
-
-        await conn.commit();
-      } catch (e) {
-        await conn.rollback().catch(() => {});
-        console.error(e);
-      } finally {
-        conn.release();
       }
-    }
 
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: "Invalid webhook payload" });
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("Webhook parse error:", err);
+      res.status(400).json({ error: "Invalid webhook payload" });
+    }
   }
-});
+);
 
 app.use(express.json());
 app.use(clerkMiddleware());
