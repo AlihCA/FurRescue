@@ -29,82 +29,98 @@ app.post(
   express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
-      const raw = req.body?.toString("utf8") || "";
-      const event = raw ? JSON.parse(raw) : null;
-      if (!event) return res.status(400).json({ error: "Empty webhook body" });
+      const raw = req.body.toString("utf8");
+      const event = JSON.parse(raw);
 
-      const eventType =
-        event?.data?.attributes?.type ||
-        event?.data?.type ||
-        event?.type;
+      const eventType = event?.data?.attributes?.type;
+      const data = event?.data?.attributes?.data;
 
-      const resource =
-        event?.data?.attributes?.data ||
-        event?.data?.attributes ||
-        event?.data;
+      console.log("✅ PayMongo webhook HIT");
+      console.log("Event type:", eventType);
 
-      // TODO: verify signature later in production
-
-      if (eventType === "checkout_session.payment.paid") {
-        const checkoutId = resource?.id || resource?.data?.id;
-        const paymentId =
-          resource?.attributes?.payments?.[0]?.id ||
-          resource?.payments?.[0]?.id ||
-          null;
-
-        if (!checkoutId) return res.status(400).json({ error: "Missing checkout id" });
-
-        const conn = await db.getConnection();
-        try {
-          await conn.beginTransaction();
-
-          const [dRows] = await conn.query(
-            `SELECT id, animal_id, amount, status
-             FROM donations
-             WHERE paymongo_checkout_id = ?
-             FOR UPDATE`,
-            [checkoutId]
-          );
-
-          if (dRows.length) {
-            const d = dRows[0];
-
-            if (d.status !== "paid") {
-              await conn.query(
-                `UPDATE donations
-                 SET status='paid', paymongo_payment_id=?
-                 WHERE id=?`,
-                [paymentId, d.id]
-              );
-
-              await conn.query(
-                `UPDATE animals
-                 SET raised_amount = COALESCE(raised_amount, 0) + ?
-                 WHERE id = ?`,
-                [Number(d.amount), d.animal_id]
-              );
-
-              await maybeCompleteGoalAndNotify(conn, d.animal_id);
-            }
-          }
-
-          await conn.commit();
-        } catch (e) {
-          await conn.rollback().catch(() => {});
-          console.error("Webhook DB error:", e);
-          return res.status(500).json({ error: "Webhook DB failed" });
-        } finally {
-          conn.release();
-        }
+      // We only care about successful checkout payment
+      if (eventType !== "checkout_session.payment.paid") {
+        return res.status(200).json({ ok: true });
       }
 
-      res.status(200).json({ ok: true });
+      // This `data` should be the checkout session object
+      const checkoutId = data?.id;
+      if (!checkoutId) {
+        console.log("❌ Missing checkoutId in webhook data");
+        return res.status(200).json({ ok: true });
+      }
+
+      // Try to extract payment id from any known place
+      const paymentId =
+        data?.attributes?.payment?.id ||
+        data?.attributes?.payments?.[0]?.id ||
+        data?.attributes?.payments?.[0]?.payment?.id ||
+        null;
+
+      console.log("checkoutId:", checkoutId);
+      console.log("paymentId:", paymentId);
+
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        const [dRows] = await conn.query(
+          `SELECT id, animal_id, amount, status
+           FROM donations
+           WHERE paymongo_checkout_id = ?
+           FOR UPDATE`,
+          [checkoutId]
+        );
+
+        console.log("Matched donations:", dRows.length);
+
+        if (!dRows.length) {
+          await conn.rollback();
+          return res.status(200).json({ ok: true });
+        }
+
+        const d = dRows[0];
+
+        if (d.status !== "paid") {
+          await conn.query(
+            `UPDATE donations
+             SET status='paid', paymongo_payment_id=?
+             WHERE id=?`,
+            [paymentId, d.id]
+          );
+
+          await conn.query(
+            `UPDATE animals
+             SET raised_amount = LEAST(goal_amount, COALESCE(raised_amount, 0) + ?)
+             WHERE id = ?`,
+            [Number(d.amount), d.animal_id]
+          );
+
+          await maybeCompleteGoalAndNotify(conn, d.animal_id);
+        }
+
+        await conn.commit();
+      } catch (e) {
+        await conn.rollback().catch(() => {});
+        console.error("❌ Webhook DB error:", e);
+      } finally {
+        conn.release();
+      }
+
+      return res.status(200).json({ ok: true });
     } catch (err) {
-      console.error("Webhook parse error:", err);
-      res.status(400).json({ error: "Invalid webhook payload" });
+      console.error("❌ Webhook parse error:", err);
+      return res.status(400).json({ error: "Invalid webhook payload" });
     }
   }
 );
+
+
+app.post("/webhooks/test", express.json(), (req, res) => {
+  console.log("✅ TEST WEBHOOK HIT");
+  console.log("Body:", req.body);
+  res.json({ ok: true });
+});
 
 app.use(express.json());
 app.use(clerkMiddleware());
