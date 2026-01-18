@@ -19,6 +19,10 @@ app.use(
   })
 );
 
+app.get("/webhooks/paymongo", (req, res) => {
+  res.status(200).send("PayMongo webhook endpoint is alive ✅ (GET)");
+});
+
 // PayMongo Webhook
 app.post(
   "/webhooks/paymongo",
@@ -167,6 +171,10 @@ async function maybeCompleteGoalAndNotify(conn, animalId) {
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.get("/", (req, res) => {
+  res.send("FurRescue API is running ✅ Try /health");
+});
 
 app.get("/health/db", async (req, res) => {
   try {
@@ -452,7 +460,7 @@ app.post("/api/animals/:id/paymongo/checkout", requireAuthApi, async (req, res) 
           },
         ],
         payment_method_types: ["gcash", "card"],
-        success_url: `${process.env.APP_URL}/animals?tab=donate`,
+        success_url: `${process.env.APP_URL}/animals?tab=donate&refresh=1`,
         cancel_url: `${process.env.APP_URL}/animals?tab=donate`,
         metadata: {
           donationId: String(ins.insertId),
