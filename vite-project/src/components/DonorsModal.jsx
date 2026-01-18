@@ -8,6 +8,8 @@ export default function DonorsModal({ open, onClose, animal }) {
 
   const animalId = animal?.id;
 
+  const API = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     if (!open || !animalId) return;
 
@@ -20,7 +22,7 @@ export default function DonorsModal({ open, onClose, animal }) {
         setDonations([]);
 
         const res = await fetch(
-          `http://localhost:4000/api/animals/${animalId}/donations`,
+          `${API}/api/animals/${animalId}/donations`,
           { signal: controller.signal }
         );
 

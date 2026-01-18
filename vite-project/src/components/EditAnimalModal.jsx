@@ -9,6 +9,8 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const { getToken } = useAuth();
+
+  const API = import.meta.env.VITE_API_URL;
  
   const refs = {
     name: useRef(null),
@@ -145,7 +147,7 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
 
       const token = await getToken();
 
-      const res = await fetch(`http://localhost:4000/api/animals/${form.id}`, {
+      const res = await fetch(`${API}/api/animals/${form.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

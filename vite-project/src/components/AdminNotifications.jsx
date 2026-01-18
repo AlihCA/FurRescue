@@ -10,6 +10,8 @@ export default function AdminNotifications() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  const API = import.meta.env.VITE_API_URL;
+
   const unreadCount = useMemo(
     () => items.filter((n) => !n.readAt).length,
     [items]
@@ -21,7 +23,7 @@ export default function AdminNotifications() {
       setErr("");
 
       const token = await getToken();
-      const res = await fetch("http://localhost:4000/api/admin/notifications", {
+      const res = await fetch(`${API}/api/admin/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -40,7 +42,7 @@ export default function AdminNotifications() {
     try {
       const token = await getToken();
       const res = await fetch(
-        `http://localhost:4000/api/admin/notifications/${id}/read`,
+        `${API}/api/admin/notifications/${id}/read`,
         {
           method: "PATCH",
           headers: { Authorization: `Bearer ${token}` },

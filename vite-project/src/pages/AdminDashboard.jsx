@@ -45,6 +45,8 @@ export default function AdminDashboard() {
     };
   };
 
+  const API = import.meta.env.VITE_API_URL;
+
   // states
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -113,7 +115,7 @@ export default function AdminDashboard() {
       setLoadingList(true);
       setListError("");
 
-      const res = await fetch("http://localhost:4000/api/animals");
+      const res = await fetch(`${API}/api/animals`);
       if (!res.ok) throw new Error("Failed to load animals");
 
       const data = await res.json();
@@ -161,7 +163,7 @@ export default function AdminDashboard() {
         goal: isDonate ? Number(form.goal) : undefined,
       };
 
-      const res = await fetch("http://localhost:4000/api/animals", {
+      const res = await fetch(`${API}/api/animals`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify(payload),
@@ -174,7 +176,6 @@ export default function AdminDashboard() {
 
       const created = await res.json();
 
-      // ✅ instant UI update (no refetch needed)
       setAnimals((prev) => [created, ...prev]);
 
       setMsg({ type: "success", text: "Animal created!" });
@@ -527,7 +528,7 @@ export default function AdminDashboard() {
 
             const token = await getToken();
             const res = await fetch(
-              `http://localhost:4000/api/animals/${deleteAnimal.id}`,
+              `${API}/api/animals/${deleteAnimal.id}`,
               {
                 method: "DELETE",
                 headers: {

@@ -12,6 +12,8 @@ export default function Animals() {
   const { isSignedIn, getToken } = useAuth();
   const navigate = useNavigate();
 
+  const API = import.meta.env.VITE_API_URL;
+
   const [params, setParams] = useSearchParams();
   const initialTab = params.get("tab") === "adopt" ? "adopt" : "donate";
   const [tab, setTab] = useState(initialTab);
@@ -41,7 +43,7 @@ export default function Animals() {
       setLoading(true);
       setError("");
 
-      const res = await fetch("http://localhost:4000/api/animals");
+      const res = await fetch(`${API}/api/animals`);
       if (!res.ok) throw new Error("Failed to load animals");
 
       const data = await res.json();
@@ -81,7 +83,7 @@ export default function Animals() {
       setDonorsError("");
 
       const res = await fetch(
-        `http://localhost:4000/api/animals/${animal.id}/donations`
+        `${API}/api/animals/${animal.id}/donations`
       );
       if (!res.ok) throw new Error("Failed to load donors");
 
@@ -100,7 +102,7 @@ export default function Animals() {
       const token = await getToken();
 
       const res = await fetch(
-        `http://localhost:4000/api/animals/${selected.id}/paymongo/checkout`,
+        `${API}/api/animals/${selected.id}/paymongo/checkout`,
         {
           method: "POST",
           headers: {
