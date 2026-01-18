@@ -1,0 +1,18 @@
+# ENV FILES (never commit)
+.env
+*.env
+*.env.*
+server/.env
+
+# DEPENDENCIES
+node_modules
+server/node_modules
+client/node_modules
+
+# BUILD OUTPUT
+dist
+build
+client/dist
+
+# SYSTEM FILES
+.DS_Store
