@@ -1,6 +1,6 @@
 // src/pages/AdminDashboard.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import EditAnimalModal from "../components/EditAnimalModal";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editAnimal, setEditAnimal] = useState(null);
@@ -63,6 +64,11 @@ export default function AdminDashboard() {
   const [animals, setAnimals] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState("");
+  const [receiptFilter, setReceiptFilter] = useState("all"); // all | pending | uploaded
+  const [sortMode, setSortMode] = useState("pending_first"); // pending_first | uploaded_first | newest
+
+
+  const [q, setQ] = useState("");
 
   const isDonate = form.category === "donate";
 
@@ -126,13 +132,76 @@ export default function AdminDashboard() {
     }
   };
 
+  // reset filter
+  useEffect(() => {
+    if (tab !== "goal_reached") {
+      setReceiptFilter("all");
+      setSortMode("pending_first");
+    }
+  }, [tab]);
+
   useEffect(() => {
     loadAnimals();
   }, []);
 
-  const filteredAnimals = useMemo(() => {
-    return animals.filter((a) => a.category === tab);
-  }, [animals, tab]);
+ const filteredAnimals = useMemo(() => {
+  const isGoalReached = (a) => {
+    const g = Number(a.goal || 0);
+    const r = Number(a.raised || 0);
+    return a.category === "donate" && Number.isFinite(g) && g > 0 && r >= g;
+  };
+
+  let base = [];
+  if (tab === "donate") {
+
+    base = animals.filter((a) => a.category === "donate" && !isGoalReached(a));
+  } else if (tab === "adopt") {
+    base = animals.filter((a) => a.category === "adopt");
+  } else if (tab === "goal_reached") {
+
+    base = animals.filter((a) => isGoalReached(a));
+
+    if (receiptFilter === "pending") base = base.filter((a) => !a.receiptUrl);
+    if (receiptFilter === "uploaded") base = base.filter((a) => Boolean(a.receiptUrl));
+  } else {
+   
+    base = animals;
+  }
+
+  // search filter
+  const s = q.trim().toLowerCase();
+  if (s) {
+    base = base.filter((a) => {
+      const hay = [
+        a.name,
+        a.breed,
+        a.shelter,
+        a.medicalNeeds,
+        a.about,
+        a.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(s);
+    });
+  }
+
+  //sort
+  const copy = [...base];
+  if (tab === "goal_reached") {
+    if (sortMode === "pending_first") {
+      copy.sort((a, b) => Number(Boolean(a.receiptUrl)) - Number(Boolean(b.receiptUrl)));
+    } else if (sortMode === "uploaded_first") {
+      copy.sort((a, b) => Number(Boolean(b.receiptUrl)) - Number(Boolean(a.receiptUrl)));
+    } else if (sortMode === "newest") {
+      copy.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    }
+  }
+
+  return copy;
+  }, [animals, tab, q, receiptFilter, sortMode]);
 
   const submit = async (ev) => {
     ev.preventDefault();
@@ -174,7 +243,6 @@ export default function AdminDashboard() {
       }
 
       const created = await res.json();
-
       setAnimals((prev) => [created, ...prev]);
 
       setMsg({ type: "success", text: "Animal created!" });
@@ -195,7 +263,6 @@ export default function AdminDashboard() {
         goal: "",
       }));
 
-      // optional: auto-switch to that tab
       setTab(created.category);
     } catch (err) {
       setMsg({ type: "error", text: err?.message || "Error" });
@@ -316,6 +383,7 @@ export default function AdminDashboard() {
             <label className="text-sm font-semibold">Image *</label>
               <input
                 type="file"
+                disabled={uploadingImage}
                 accept="image/*"
                 className={`mt-1 block w-full text-sm ${fieldErrors.imageUrl ? "text-red-700" : ""}`}
                 onChange={async (e) => {
@@ -323,7 +391,7 @@ export default function AdminDashboard() {
                   if (!file) return;
 
                   try {
-                    setSaving(true);
+                    setUploadingImage(true);
                     const token = await getToken();
 
                     const formData = new FormData();
@@ -347,7 +415,7 @@ export default function AdminDashboard() {
                   } catch (err) {
                     alert(err?.message || "Upload failed");
                   } finally {
-                    setSaving(false);
+                    setUploadingImage(false);
                     e.target.value = ""; // allow selecting same file again
                   }
                 }}
@@ -422,9 +490,10 @@ export default function AdminDashboard() {
             <button
               type="submit"
               className="btn-pink rounded-2xl px-5 py-3 font-extrabold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={saving}
+              disabled={saving || uploadingImage}
             >
-              {saving ? "Saving..." : "Add Animal"}
+              {saving ? "Saving..." : uploadingImage ? "Uploading image..." : "Add Animal"}
+
             </button>
           </div>
         </form>
@@ -447,6 +516,7 @@ export default function AdminDashboard() {
               items={[
                 { value: "donate", label: "Donate" },
                 { value: "adopt", label: "Adopt" },
+                { value: "goal_reached", label: "Goal Reached" },
               ]}
             />
             <button
@@ -458,6 +528,72 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        {/* SEARCH BAR */}
+        <div className="mt-6 flex items-center gap-3">
+          <div className="relative w-full">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={
+                tab === "adopt"
+                  ? "Search donate animals (name, breed, shelter)"
+                  : "Search adopt animals (name, breed, shelter, medical needs)"
+              }
+              className="w-full rounded-2xl border border-zinc-200
+                        pl-11 pr-10 py-3 text-sm
+                        outline-none transition
+                        focus:ring-2 focus:ring-pink-300/40
+                        focus:border-pink-300"
+            />
+
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2
+                          rounded-full p-1 hover:bg-zinc-100"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {tab === "goal_reached" && (
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <div>
+              <label className="text-xs font-extrabold text-zinc-600">Receipt </label>
+              <select
+                value={receiptFilter}
+                onChange={(e) => setReceiptFilter(e.target.value)}
+                className="mt-1 w-full sm:w-[220px] rounded-2xl border border-zinc-200 px-3 py-2 text-sm"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending receipt</option>
+                <option value="uploaded">Receipt uploaded</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-extrabold text-zinc-600">Sort </label>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+                className="mt-1 w-full sm:w-[220px] rounded-2xl border border-zinc-200 px-3 py-2 text-sm"
+              >
+                <option value="pending_first">Pending first</option>
+                <option value="uploaded_first">Uploaded first</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {loadingList && <p className="mt-4 text-zinc-600">Loading...</p>}
         {listError && <p className="mt-4 text-red-600">{listError}</p>}

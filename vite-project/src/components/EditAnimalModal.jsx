@@ -6,6 +6,7 @@ import ProofUploadModal from "./ProofUploadModal";
 export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [msg, setMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -13,6 +14,13 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
   const { getToken } = useAuth();
 
   const API = import.meta.env.VITE_API_URL;
+
+  const goalReached = useMemo(() => {
+    const g = Number(form?.goal || 0);
+    const r = Number(form?.raised || 0);
+    return Number.isFinite(g) && g > 0 && Number.isFinite(r) && r >= g;
+  }, [form?.goal, form?.raised]);
+
  
   const refs = {
     name: useRef(null),
@@ -32,7 +40,7 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
 
     setMsg(null);
     setFieldErrors({});
-    setSaving(false);
+    setUploadingImage(false);
 
     setForm({
       id: animal.id,
@@ -48,6 +56,10 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
       imageUrl: animal.imageUrl || "",
       goal: animal.goal ?? "",
       raised: animal.raised ?? 0,
+
+      receiptUrl: animal.receiptUrl || "",
+      status: animal.status || "",
+
     });
   }, [open, animal]);
 
@@ -126,7 +138,7 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
     }
 
     try {
-      setSaving(true);
+      setUploadingImage(true);
 
       const payload = {
         category: form.category,
@@ -173,7 +185,7 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
     } catch (err) {
       setMsg({ type: "error", text: err?.message || "Error" });
     } finally {
-      setSaving(false);
+      setUploadingImage(false);
     }
   };
 
@@ -278,55 +290,69 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
 
           <div className="md:col-span-2">
             <label className="text-sm font-semibold">Image *</label>
-              <input
-                type="file"
-                accept="image/*"
-                className={`mt-1 block w-full text-sm ${fieldErrors.imageUrl ? "text-red-700" : ""}`}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
 
-                  try {
-                    setSaving(true);
-                    const token = await getToken();
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploadingImage || saving}
+              className={`mt-1 block w-full text-sm ${
+                fieldErrors.imageUrl ? "text-red-700" : ""
+              }`}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
 
-                    const formData = new FormData();
-                    formData.append("file", file);
+                try {
+                  setUploadingImage(true);
+                  const token = await getToken();
 
-                    const res = await fetch(`${API}/api/admin/uploads/animal-image`, {
-                      method: "POST",
-                      headers: { Authorization: `Bearer ${token}` },
-                      body: formData,
-                    });
+                  const formData = new FormData();
+                  formData.append("file", file);
 
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(data?.error || "Image upload failed");
+                  const res = await fetch(`${API}/api/admin/uploads/animal-image`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                  });
 
-                    setForm((prev) => ({ ...prev, imageUrl: data.url }));
-                    setFieldErrors((prev) => {
-                      const copy = { ...prev };
-                      delete copy.imageUrl;
-                      return copy;
-                    });
-                  } catch (err) {
-                    alert(err?.message || "Upload failed");
-                  } finally {
-                    setSaving(false);
-                    e.target.value = "";
-                  }
-                }}
-              />
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(data?.error || "Image upload failed");
 
-              {form.imageUrl && (
-                <div className="mt-3 rounded-2xl border border-zinc-200 overflow-hidden">
-                  <img src={form.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
-                </div>
-              )}
+                  setForm((prev) => ({ ...prev, imageUrl: data.url }));
+                  setFieldErrors((prev) => {
+                    const copy = { ...prev };
+                    delete copy.imageUrl;
+                    return copy;
+                  });
+                } catch (err) {
+                  alert(err?.message || "Upload failed");
+                } finally {
+                  setUploadingImage(false);
+                  e.target.value = "";
+                }
+              }}
+            />
+
+            {uploadingImage && (
+              <p className="mt-2 text-xs font-semibold text-zinc-600">
+                Uploading image…
+              </p>
+            )}
+
+            {form.imageUrl && (
+              <div className="mt-3 rounded-2xl border border-zinc-200 overflow-hidden">
+                <img
+                  src={form.imageUrl}
+                  alt="Preview"
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            )}
 
             <FieldError k="imageUrl" />
           </div>
 
-          {isDonate && (animal.status === "completed" || animal.status === "finalized") && (
+          {isDonate && (form.status === "completed" || form.status === "finalized") && (
             <div className="md:col-span-2 mt-2 rounded-2xl border border-zinc-200 p-4">
               <p className="text-sm font-extrabold">Receipt (Transparency)</p>
               <p className="text-xs text-zinc-600 mt-1">
@@ -334,9 +360,9 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
               </p>
 
               <div className="mt-3 flex gap-2">
-                {animal.receiptUrl && (
+                {form.receiptUrl && (
                   <a
-                    href={animal.receiptUrl}
+                    href={form.receiptUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-2xl px-4 py-2 font-extrabold border border-zinc-200 hover:bg-zinc-50"
@@ -350,7 +376,7 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
                   onClick={() => setReceiptOpen(true)}
                   className="btn-pink rounded-2xl px-4 py-2 font-extrabold"
                 >
-                  {animal.receiptUrl ? "Replace Receipt" : "Upload Receipt"}
+                  {form.receiptUrl ? "Replace Receipt" : "Upload Receipt"}
                 </button>
               </div>
             </div>
@@ -376,8 +402,13 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
                   value={form.goal}
                   onChange={onChange("goal")}
                   inputMode="numeric"
-                  className={inputClass("goal")}
+                  className={`${inputClass("goal")} ${goalReached ? "bg-zinc-100 text-zinc-500 cursor-not-allowed" : ""}`}
                 />
+                {goalReached && (
+                  <p className="mt-1 text-xs font-semibold text-zinc-500">
+                    Goal has been reached.
+                  </p>
+                )}
                 <FieldError k="goal" />
               </div>
 
@@ -387,8 +418,15 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
                   value={form.raised}
                   onChange={onChange("raised")}
                   inputMode="numeric"
-                  className={inputClass("raised")}
+                  disabled={goalReached}
+                  className={`${inputClass("raised")} ${goalReached ? "bg-zinc-100 text-zinc-500 cursor-not-allowed" : ""}`}
                 />
+                {goalReached && (
+                  <p className="mt-1 text-xs font-semibold text-zinc-500">
+                    Raised lock because Goal has been reached.
+                  </p>
+                )}
+
                 <FieldError k="raised" />
               </div>
             </>
@@ -421,10 +459,10 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
           <div className="md:col-span-2 flex gap-3 mt-2">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || uploadingImage}
               className="btn-pink rounded-2xl px-5 py-3 font-extrabold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? "Saving..." : "Save changes"}
+              {saving ? "Saving..." : uploadingImage ? "Uploading image..." : "Save changes"}
             </button>
 
             <button
@@ -441,11 +479,18 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
               animalId={animal.id}
               animalName={animal.name}
               onUploaded={(updatedAnimal) => {
-                // update list immediately
+                setForm((prev) => ({
+                  ...prev,
+                  receiptUrl: updatedAnimal?.receiptUrl || prev.receiptUrl,
+                  status: updatedAnimal?.status || prev.status,
+                }));
+
                 onSaved?.(updatedAnimal);
+
                 setReceiptOpen(false);
               }}
             />
+
         </form>
       </div>
     </div>

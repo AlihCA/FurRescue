@@ -142,7 +142,6 @@ app.post(
   }
 );
 
-
 app.post("/webhooks/test", express.json(), (req, res) => {
   console.log("✅ TEST WEBHOOK HIT");
   console.log("Body:", req.body);
@@ -925,6 +924,30 @@ app.put("/api/animals/:id", requireAdmin, async (req, res) => {
   try {
     const id = req.params.id;
 
+    // Load current record (needed to lock goal/raised once reached)
+    const [currentRows] = await db.query(
+      `SELECT id, category, status,
+              goal_amount AS goal,
+              raised_amount AS raised
+       FROM animals
+       WHERE id = ?`,
+      [id]
+    );
+
+    if (currentRows.length === 0) return res.status(404).json({ error: "Not found" });
+
+    const current = currentRows[0];
+    const currentCategory = current.category;
+    const currentGoal = Number(current.goal || 0);
+    const currentRaised = Number(current.raised || 0);
+
+    const alreadyReached =
+      currentCategory === "donate" &&
+      Number.isFinite(currentGoal) &&
+      currentGoal > 0 &&
+      Number.isFinite(currentRaised) &&
+      currentRaised >= currentGoal;
+
     const {
       category,
       name,
@@ -960,20 +983,38 @@ app.put("/api/animals/:id", requireAdmin, async (req, res) => {
       if (!String(medicalNeeds || "").trim())
         return res.status(400).json({ error: "Medical needs is required for donate" });
 
-      const g = Number(goal);
-      if (!Number.isFinite(g) || g <= 0)
-        return res.status(400).json({ error: "Goal must be a positive number" });
+      // LOCK goal + raised if the CURRENT DB record already reached goal
+      if (alreadyReached) {
+        goalAmount = currentGoal;       // locked
+        raisedAmount = currentRaised;   // locked
+      } else {
+        // goal can be edited only if not reached yet
+        const g = Number(goal);
+        if (!Number.isFinite(g) || g <= 0)
+          return res.status(400).json({ error: "Goal must be a positive number" });
 
-      const r = raised === undefined || raised === null ? 0 : Number(raised);
-      if (!Number.isFinite(r) || r < 0)
-        return res.status(400).json({ error: "Raised must be 0 or more" });
+        // raised can be edited (or left as-is) only if not reached yet
+        let r;
+        if (raised === undefined || raised === null || String(raised).trim() === "") {
+          r = currentRaised; // keep current if not provided
+        } else {
+          r = Number(raised);
+          if (!Number.isFinite(r) || r < 0)
+            return res.status(400).json({ error: "Raised must be 0 or more" });
+        }
 
-      goalAmount = g;
-      raisedAmount = Math.min(r, g);
+        // clamp raised to goal
+        if (r > g) r = g;
+
+        goalAmount = g;
+        raisedAmount = r;
+      }
+
       med = String(medicalNeeds).trim();
       aboutText = null;
       fb = null;
     } else {
+      // adopt
       if (!String(about || "").trim())
         return res.status(400).json({ error: "About is required for adopt" });
       if (!String(fbLink || "").trim())
@@ -1021,7 +1062,7 @@ app.put("/api/animals/:id", requireAdmin, async (req, res) => {
 
     if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
 
-    // if updated values now reach goal, mark completed + notify
+    // If updated values now reach goal, mark completed + notify
     const conn = await db.getConnection();
     try {
       await conn.beginTransaction();

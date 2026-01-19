@@ -150,6 +150,16 @@ export default function AnimalCard({ item, onDonate, onViewDonors }) {
               </span>
             </button>
 
+            {/* Receipt status / transparency */}
+            {goalReached && !hasReceipt && (
+              <div
+                className="mt-3 block w-full text-center rounded-2xl px-4 py-3
+                          font-extrabold border border-zinc-200 bg-zinc-50 text-zinc-700"
+              >
+                Receipt pending (for transparency)
+              </div>
+            )}
+
             {isFinalized && hasReceipt && (
               <a
                 href={item.receiptUrl}
