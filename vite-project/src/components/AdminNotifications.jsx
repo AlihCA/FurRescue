@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, X } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import ProofUploadModal from "./ProofUploadModal";
 
 export default function AdminNotifications() {
   const { getToken } = useAuth();
@@ -9,6 +10,9 @@ export default function AdminNotifications() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+
+  const [proofOpen, setProofOpen] = useState(false);
+  const [selected, setSelected] = useState(null); // notification object
 
   const API = import.meta.env.VITE_API_URL;
 
@@ -156,6 +160,8 @@ export default function AdminNotifications() {
                 {items.map((n) => {
                   const when = n.createdAt ? new Date(n.createdAt).toLocaleString() : "";
                   const unread = !n.readAt;
+                  const animalId = n.animalId;
+                  const canUpload = n.type === "GOAL_REACHED" && animalId;
 
                   return (
                     <div
@@ -173,20 +179,38 @@ export default function AdminNotifications() {
                           {when && <p className="text-xs text-zinc-500 mt-2">{when}</p>}
                         </div>
 
-                        {unread ? (
-                          <button
-                            type="button"
-                            onClick={() => markRead(n.id)}
-                            className="rounded-2xl px-3 py-2 text-sm font-extrabold
-                                       border border-pink-200 text-pink-700 hover:bg-pink-50
-                                       inline-flex items-center gap-2 transition"
-                          >
-                            <Check size={16} />
-                            Read
-                          </button>
-                        ) : (
-                          <span className="text-xs font-bold text-zinc-500">Read</span>
-                        )}
+                        <div className="flex flex-col items-end gap-2">
+                          {unread ? (
+                            <button
+                              type="button"
+                              onClick={() => markRead(n.id)}
+                              className="rounded-2xl px-3 py-2 text-sm font-extrabold
+                                        border border-pink-200 text-pink-700 hover:bg-pink-50
+                                        inline-flex items-center gap-2 transition"
+                            >
+                              <Check size={16} />
+                              Read
+                            </button>
+                          ) : (
+                            <span className="text-xs font-bold text-zinc-500">Read</span>
+                          )}
+
+                          {canUpload && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelected(n);
+                                setProofOpen(true);
+                                setOpen(false);
+                              }}
+                              className="rounded-2xl px-3 py-2 text-sm font-extrabold
+                                        border border-zinc-200 text-zinc-800 hover:bg-zinc-50 transition"
+                            >
+                              Upload Receipt
+                            </button>
+                          )}
+                        </div>
+
                       </div>
                     </div>
                   );
@@ -214,6 +238,23 @@ export default function AdminNotifications() {
           </div>
         </div>
       )}
+
+      <ProofUploadModal
+        open={proofOpen}
+        onClose={() => setProofOpen(false)}
+        animalId={selected?.animalId}
+        animalName={null}
+        onUploaded={async () => {
+          // Refresh notifications list (optional)
+          await load();
+
+          // Mark this notification as read automatically
+          if (selected?.id) {
+            await markRead(selected.id);
+          }
+        }}
+      />
+
     </div>
   );
 }

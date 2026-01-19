@@ -16,6 +16,7 @@ export default function Animals() {
 
   const [params, setParams] = useSearchParams();
   const initialTab = params.get("tab") === "adopt" ? "adopt" : "donate";
+  const refresh = params.get("refresh");
   const [tab, setTab] = useState(initialTab);
 
   const [items, setItems] = useState([]);
@@ -32,10 +33,25 @@ export default function Animals() {
   const [donorsLoading, setDonorsLoading] = useState(false);
   const [donorsError, setDonorsError] = useState("");
 
+  useEffect(() => {
+    if (refresh === "1") {
+      loadAnimals();
+      const next = new URLSearchParams(params);
+      next.delete("refresh");
+      setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
+
+
   // Keep URL in sync with tab
   useEffect(() => {
-    setParams({ tab });
-  }, [tab, setParams]);
+    const next = new URLSearchParams(params);
+    next.set("tab", tab);
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
 
   // Load animals once
   const loadAnimals = async () => {

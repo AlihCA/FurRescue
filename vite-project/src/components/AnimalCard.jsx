@@ -12,6 +12,9 @@ export default function AnimalCard({ item, onDonate, onViewDonors }) {
 
   const goalReached = hasGoal ? raised >= goal : false;
 
+  const hasReceipt = Boolean(item.receiptUrl);
+  const isFinalized = item.status === "finalized";
+
   return (
     <div
       className="card rounded-[2rem] overflow-hidden transition-all
@@ -146,6 +149,19 @@ export default function AnimalCard({ item, onDonate, onViewDonors }) {
                 {goalReached ? "Goal Reached" : "Donate"}
               </span>
             </button>
+
+            {isFinalized && hasReceipt && (
+              <a
+                href={item.receiptUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 block w-full text-center rounded-2xl px-4 py-3
+                          font-extrabold border border-zinc-200 text-zinc-800 hover:bg-zinc-50 transition"
+              >
+                View Receipt (Transparency)
+              </a>
+            )}
+
           </div>
         ) : (
           <a

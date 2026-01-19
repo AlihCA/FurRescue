@@ -9,6 +9,33 @@ import { makeDbPool } from "./db.js";
 
 import { clerkMiddleware, getAuth, clerkClient } from "@clerk/express";
 
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 6 * 1024 * 1024 }, // 6MB
+});
+
+function uploadBufferToCloudinary(buffer, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "image", ...opts },
+      (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
 const app = express();
 const db = makeDbPool();
 
@@ -671,6 +698,74 @@ app.post("/api/admin/animals/:id/receipt", requireAdmin, async (req, res) => {
   }
 });
 
+//Receipt Upload
+app.post(
+  "/api/admin/animals/:id/receipt/upload",
+  requireAdmin,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const animalId = Number(req.params.id);
+      if (!Number.isFinite(animalId)) return res.status(400).json({ error: "Invalid id" });
+      if (!req.file) return res.status(400).json({ error: "file is required" });
+
+      if (!req.file.mimetype?.startsWith("image/")) {
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+
+      const [rows] = await db.query(
+        `SELECT id, category, status FROM animals WHERE id = ?`,
+        [animalId]
+      );
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+
+      const a = rows[0];
+      if (a.category !== "donate") {
+        return res.status(400).json({ error: "Receipt is only for donate animals" });
+      }
+      if (a.status !== "completed" && a.status !== "finalized") {
+        return res.status(400).json({ error: "Animal must be completed before finalizing" });
+      }
+
+      const result = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "furrescue/receipts",
+        public_id: `animal_${animalId}_${Date.now()}`,
+      });
+
+      const receiptUrl = result?.secure_url;
+      if (!receiptUrl) throw new Error("Cloudinary upload failed");
+
+      await db.query(
+        `UPDATE animals
+         SET receipt_url = ?, status = 'finalized', finalized_at = NOW()
+         WHERE id = ?`,
+        [String(receiptUrl).trim(), animalId]
+      );
+
+      const [updated] = await db.query(
+        `SELECT
+          id,
+          category,
+          status,
+          name,
+          receipt_url AS receiptUrl,
+          goal_amount AS goal,
+          raised_amount AS raised,
+          completed_at AS completedAt,
+          finalized_at AS finalizedAt
+        FROM animals
+        WHERE id = ?`,
+        [animalId]
+      );
+
+      res.json(updated[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err?.message || "Failed to upload receipt" });
+    }
+  }
+);
+
 // CREATE (admin)
 app.post("/api/animals", requireAdmin, async (req, res) => {
   try {
@@ -953,3 +1048,5 @@ app.delete("/api/animals/:id", requireAdmin, async (req, res) => {
 
 const port = Number(process.env.PORT || 4000);
 app.listen(port, () => console.log(`API running on http://localhost:${port}`));
+
+
