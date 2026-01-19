@@ -138,15 +138,23 @@ export default function Navbar() {
             </SignedIn>
           </div>
 
-          {/* Mobile toggle */}
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="md:hidden p-2 rounded-2xl hover:bg-pink-100/60 transition"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-          >
-            {open ? <X /> : <Menu />}
-          </button>
+          {/* Mobile right side: notifications + menu */}
+          <div className="md:hidden flex items-center gap-2">
+            <SignedIn>
+              {isAdmin && <AdminNotifications />}
+            </SignedIn>
+
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="p-2 rounded-2xl hover:bg-pink-100/60 transition"
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
+              type="button"
+            >
+              {open ? <X /> : <Menu />}
+            </button>
+          </div>
+
         </div>
       </div>
 
@@ -185,16 +193,6 @@ export default function Navbar() {
               >
                 Admin
               </NavLink>
-            )}
-
-            {/* Mobile admin notifications */}
-            {isAdmin && (
-              <div className="pt-2">
-                <p className="text-xs font-extrabold text-zinc-600 mb-2">
-                  Admin
-                </p>
-                <AdminNotifications />
-              </div>
             )}
 
             <div className="pt-3 border-t border-pink-200/60 space-y-2">
