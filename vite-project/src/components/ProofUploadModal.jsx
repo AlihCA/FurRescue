@@ -72,11 +72,16 @@ export default function ProofUploadModal({ open, onClose, animalId, animalName, 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {/* backdrop */}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 w-[520px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2
-        max-h-[85vh] rounded-3xl bg-white shadow-xl border border-zinc-200 overflow-hidden flex flex-col">
 
+      {/* modal */}
+      <div
+        className="relative w-[520px] max-w-[92vw] max-h-[85vh]
+                  rounded-3xl bg-white shadow-xl border border-zinc-200
+                  overflow-hidden flex flex-col"
+      >
         <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-white sticky top-0 z-10">
           <div>
             <p className="font-extrabold">{title}</p>
@@ -84,7 +89,11 @@ export default function ProofUploadModal({ open, onClose, animalId, animalName, 
               Upload vet receipt / proof of expenses for transparency.
             </p>
           </div>
-          <button className="p-2 rounded-xl hover:bg-zinc-100" onClick={onClose} aria-label="Close">
+          <button
+            className="p-2 rounded-xl hover:bg-zinc-100"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
         </div>
@@ -131,4 +140,5 @@ export default function ProofUploadModal({ open, onClose, animalId, animalName, 
       </div>
     </div>
   );
+
 }
