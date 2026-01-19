@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X, Check } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import ProofUploadModal from "./ProofUploadModal";
 
 export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   const { getToken } = useAuth();
 
@@ -275,15 +277,84 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="text-sm font-semibold">Image URL *</label>
-            <input
-              ref={refs.imageUrl}
-              value={form.imageUrl}
-              onChange={onChange("imageUrl")}
-              className={inputClass("imageUrl")}
-            />
+            <label className="text-sm font-semibold">Image *</label>
+              <input
+                type="file"
+                accept="image/*"
+                className={`mt-1 block w-full text-sm ${fieldErrors.imageUrl ? "text-red-700" : ""}`}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  try {
+                    setSaving(true);
+                    const token = await getToken();
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    const res = await fetch(`${API}/api/admin/uploads/animal-image`, {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: formData,
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data?.error || "Image upload failed");
+
+                    setForm((prev) => ({ ...prev, imageUrl: data.url }));
+                    setFieldErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.imageUrl;
+                      return copy;
+                    });
+                  } catch (err) {
+                    alert(err?.message || "Upload failed");
+                  } finally {
+                    setSaving(false);
+                    e.target.value = "";
+                  }
+                }}
+              />
+
+              {form.imageUrl && (
+                <div className="mt-3 rounded-2xl border border-zinc-200 overflow-hidden">
+                  <img src={form.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
+                </div>
+              )}
+
             <FieldError k="imageUrl" />
           </div>
+
+          {isDonate && (animal.status === "completed" || animal.status === "finalized") && (
+            <div className="md:col-span-2 mt-2 rounded-2xl border border-zinc-200 p-4">
+              <p className="text-sm font-extrabold">Receipt (Transparency)</p>
+              <p className="text-xs text-zinc-600 mt-1">
+                You can replace the receipt if a wrong file was uploaded.
+              </p>
+
+              <div className="mt-3 flex gap-2">
+                {animal.receiptUrl && (
+                  <a
+                    href={animal.receiptUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-2xl px-4 py-2 font-extrabold border border-zinc-200 hover:bg-zinc-50"
+                  >
+                    View current receipt
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setReceiptOpen(true)}
+                  className="btn-pink rounded-2xl px-4 py-2 font-extrabold"
+                >
+                  {animal.receiptUrl ? "Replace Receipt" : "Upload Receipt"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {isDonate ? (
             <>
@@ -364,6 +435,17 @@ export default function EditAnimalModal({ open, onClose, animal, onSaved }) {
               Cancel
             </button>
           </div>
+            <ProofUploadModal
+              open={receiptOpen}
+              onClose={() => setReceiptOpen(false)}
+              animalId={animal.id}
+              animalName={animal.name}
+              onUploaded={(updatedAnimal) => {
+                // update list immediately
+                onSaved?.(updatedAnimal);
+                setReceiptOpen(false);
+              }}
+            />
         </form>
       </div>
     </div>

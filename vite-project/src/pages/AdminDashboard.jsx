@@ -313,15 +313,54 @@ export default function AdminDashboard() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="text-sm font-semibold">Image URL *</label>
-            <input
-              ref={refs.imageUrl}
-              value={form.imageUrl}
-              onChange={onChange("imageUrl")}
-              className={inputClass("imageUrl")}
-              placeholder="https://..."
-            />
-            <FieldError k="imageUrl" />
+            <label className="text-sm font-semibold">Image *</label>
+              <input
+                type="file"
+                accept="image/*"
+                className={`mt-1 block w-full text-sm ${fieldErrors.imageUrl ? "text-red-700" : ""}`}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  try {
+                    setSaving(true);
+                    const token = await getToken();
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    const res = await fetch(`${API}/api/admin/uploads/animal-image`, {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: formData,
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data?.error || "Image upload failed");
+
+                    setForm((prev) => ({ ...prev, imageUrl: data.url }));
+                    setFieldErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.imageUrl;
+                      return copy;
+                    });
+                  } catch (err) {
+                    alert(err?.message || "Upload failed");
+                  } finally {
+                    setSaving(false);
+                    e.target.value = ""; // allow selecting same file again
+                  }
+                }}
+              />
+
+              {form.imageUrl && (
+                <div className="mt-3 rounded-2xl border border-zinc-200 overflow-hidden">
+                  <img src={form.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
+                </div>
+              )}
+
+              <FieldError k="imageUrl" />
+
           </div>
 
           {isDonate ? (

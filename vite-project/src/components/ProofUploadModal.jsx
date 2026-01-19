@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, UploadCloud } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
+import { createPortal } from "react-dom";
 
 export default function ProofUploadModal({ open, onClose, animalId, animalName, onUploaded }) {
   const { getToken } = useAuth();
@@ -71,17 +72,16 @@ export default function ProofUploadModal({ open, onClose, animalId, animalName, 
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* backdrop */}
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
 
-      {/* modal */}
       <div
         className="relative w-[520px] max-w-[92vw] max-h-[85vh]
                   rounded-3xl bg-white shadow-xl border border-zinc-200
                   overflow-hidden flex flex-col"
       >
+
         <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-white sticky top-0 z-10">
           <div>
             <p className="font-extrabold">{title}</p>
@@ -138,7 +138,8 @@ export default function ProofUploadModal({ open, onClose, animalId, animalName, 
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
 }

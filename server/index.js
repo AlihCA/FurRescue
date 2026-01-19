@@ -329,6 +329,34 @@ app.get("/api/animals/:id/donations", async (req, res) => {
   }
 });
 
+// Animal image upload (Cloudinary)
+app.post(
+  "/api/admin/uploads/animal-image",
+  requireAdmin,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "file is required" });
+      if (!req.file.mimetype?.startsWith("image/")) {
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+
+      const result = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "furrescue/animals",
+        public_id: `animal_${Date.now()}`,
+      });
+
+      const url = result?.secure_url;
+      if (!url) throw new Error("Cloudinary upload failed");
+
+      res.json({ url });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err?.message || "Failed to upload image" });
+    }
+  }
+);
+
 // Donations (Signed-in user)
 /*
 app.post("/api/animals/:id/donations", requireAuthApi, async (req, res) => {
