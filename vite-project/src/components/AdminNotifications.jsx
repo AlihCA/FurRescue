@@ -107,7 +107,7 @@ export default function AdminNotifications() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative h-10 w-10 rounded-2xl inline-flex items-center justify-center
+        className="relative h-10 w-10 -left-3 rounded-2xl inline-flex items-center justify-center
                    border border-pink-200 bg-white hover:bg-pink-50 transition"
         aria-label="Admin notifications"
       >
