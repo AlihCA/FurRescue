@@ -318,28 +318,6 @@ export default function Animals() {
         ))}
       </div>
 
-      <section className="mt-12 rounded-3xl border border-zinc-200 bg-zinc-50 p-6 md:p-8">
-        <div className="flex items-start gap-3">
-          <div className="h-11 w-11 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center">
-            <HandHeart />
-          </div>
-          <div>
-            <h2 className="text-xl font-extrabold">
-              Donate for general rescue needs
-            </h2>
-            <p className="mt-1 text-zinc-600">
-              Support food, shelter supplies, transportation, and emergency rescues.
-            </p>
-            <button
-              onClick={() => alert("UI palang, next time na to")}
-              className="mt-4 rounded-xl bg-zinc-900 text-white px-5 py-3 font-semibold hover:bg-zinc-800 transition"
-            >
-              Donate (General)
-            </button>
-          </div>
-        </div>
-      </section>
-
       <DonateModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
