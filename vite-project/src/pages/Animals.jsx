@@ -244,8 +244,8 @@ export default function Animals() {
             onChange={(e) => setQ(e.target.value)}
             placeholder={
               tab === "adopt"
-                ? "Search donate animals (name, breed, shelter)"
-                : "Search adopt animals (name, breed, shelter, medical needs)"
+                ? "Search adopt animals (name, breed, shelter)"
+                : "Search donate animals (name, breed, shelter, medical needs)"
             }
             className="w-full rounded-2xl border border-zinc-200
                       pl-11 pr-10 py-3 text-sm
